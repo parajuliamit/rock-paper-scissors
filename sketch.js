@@ -39,9 +39,10 @@ function onPlay() {
 }
 
 function setup() {
-  createCanvas(640, 480);
+  createCanvas(windowWidth, windowHeight);
   video = createCapture(VIDEO, { flipped: true });
   video.hide();
+  document.getElementById("loading-screen").style.display = "none";
   playButton.style.display = "inline";
   playButton.addEventListener("click", onPlay);
   noLoop();
