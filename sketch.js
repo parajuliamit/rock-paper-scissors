@@ -4,8 +4,8 @@ let hands = [];
 
 let playStat = "none";
 let currentMode;
-let computerScore = 0;
-let playerScore = 0;
+let computerScore = localStorage.getItem("computerScore") || 0;
+let playerScore = localStorage.getItem("playerScore") || 0;
 
 function preload() {
   handPose = ml5.handPose();
@@ -19,6 +19,18 @@ const playWithAIButton = document.getElementById("playAI");
 const playerScoreDiv = document.getElementById("playerScore");
 const computerScoreDiv = document.getElementById("computerScore");
 const resultDiv = document.getElementById("result");
+
+function incrementScore(isPlayer) {
+  if (isPlayer) {
+    playerScore++;
+    playerScoreDiv.innerText = playerScore;
+    localStorage.setItem("playerScore", playerScore);
+  } else {
+    computerScore++;
+    computerScoreDiv.innerText = computerScore;
+    localStorage.setItem("computerScore", computerScore);
+  }
+}
 
 function onPlay() {
   loop();
@@ -74,8 +86,11 @@ function setup() {
     computerScore = 0;
     playerScoreDiv.innerText = playerScore;
     computerScoreDiv.innerText = computerScore;
+    localStorage.removeItem("playerScore");
+    localStorage.removeItem("computerScore");
   });
-
+  playerScoreDiv.innerText = playerScore;
+  computerScoreDiv.innerText = computerScore;
   noLoop();
 }
 
@@ -178,7 +193,8 @@ function onePlayerResult(scaleFactor) {
   textSize(28);
   textAlign(CENTER, CENTER);
   fill(255);
-  noStroke();
+  stroke(0);
+  strokeWeight(4);
   let result = winner;
   if (winner == "player1") {
     result = "PLAYER WINS";
@@ -190,20 +206,18 @@ function onePlayerResult(scaleFactor) {
       mostConfidentHand.keypoints[0].x,
       mostConfidentHand.keypoints[0].y + 20
     );
-    playerScore++;
-    playerScoreDiv.innerText = playerScore;
+    incrementScore(true);
   } else if (winner == "player2") {
     result = "COMPUTER WINS";
     textSize(16);
-    fill(0, 255, 0);
+    fill(255, 0, 0);
     textStyle(BOLD);
     text(
       "LOSER 👎",
       mostConfidentHand.keypoints[0].x,
       mostConfidentHand.keypoints[0].y + 20
     );
-    computerScore++;
-    computerScoreDiv.innerText = computerScore;
+    incrementScore(false);
   }
   drawResultText(result);
 }
@@ -244,7 +258,8 @@ function twoPlayerResult(scaleFactor) {
   textSize(28);
   textAlign(CENTER, CENTER);
   fill(255);
-  noStroke();
+  stroke(0);
+  strokeWeight(4);
   let result = winner;
   if (winner == "player1") {
     result = pos1 + " WINS";
