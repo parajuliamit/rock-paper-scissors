@@ -82,30 +82,38 @@ function draw() {
   } else {
     drawCountdown();
     tint(255, 50);
-    image(video, 0, 0);
+    image(video, 0, 0, width, height, 0, 0, video.width, video.height, CONTAIN);
     noTint();
   }
 }
 
 async function drawResultHand() {
-  background(0);
-  strokeWeight(5);
-  stroke(255, 0, 255);
+  push();
   const img = video.get();
   await handPose.detect(img, gotHands);
-  image(img, 0, 0);
-  console.log(hands);
-  const confidentHands = hands.filter((hand) => hand.confidence > 0.5);
+  image(img, 0, 0, width, height, 0, 0, img.width, img.height, CONTAIN);
+  const scaleFactor = min(width / img.width, height / img.height);
+  translate(
+    (width - video.width * scaleFactor) / 2,
+    (height - video.height * scaleFactor) / 2
+  );
+  scale(scaleFactor);
+
+  const confidentHands = hands
+    .filter((hand) => hand.confidence > 0.2)
+    .sort((a, b) => b.confidence - a.confidence);
+
+  strokeWeight(5);
+  stroke(255, 0, 255);
+
   if (confidentHands.length < 2) {
     textAlign(CENTER, CENTER);
     fill(255);
     if (confidentHands.length == 1) {
       drawHandLines(confidentHands[0]);
-      textSize(32);
-      text("Only one hand found", width / 2, height - 50);
+      drawResultText("Only one hand found", scaleFactor);
     } else {
-      textSize(32);
-      text("No hands detected", width / 2, height - 50);
+      drawResultText("No hands found", scaleFactor);
       if (!!hands.length) {
         for (let hand of hands) {
           drawHandLines(hand);
@@ -116,46 +124,62 @@ async function drawResultHand() {
   }
   const pos1 = drawHandLines(confidentHands[0]);
   stroke(255, 255, 0);
+  strokeWeight(5);
   const pos2 = drawHandLines(confidentHands[1]);
   const winner = getWinner(pos1, pos2);
   textSize(28);
   textAlign(CENTER, CENTER);
   fill(255);
   noStroke();
+  let result = winner;
   if (winner == "player1") {
-    fill(255, 0, 255);
-    text(pos1 + " WINS", width / 2, height - 25);
+    result = pos1 + " WINS";
     textSize(16);
+    textStyle(BOLD);
     fill(0, 255, 0);
     text(
-      "👍\nWINNER",
-      confidentHands[0].middle_finger_mcp.x,
-      confidentHands[0].middle_finger_mcp.y
+      "WINNER 👍",
+      confidentHands[0].keypoints[0].x,
+      confidentHands[0].keypoints[0].y + 20
     );
     fill(255, 0, 0);
     text(
-      "👎\nLOSER",
-      confidentHands[1].middle_finger_mcp.x,
-      confidentHands[1].middle_finger_mcp.y
+      "LOSER 👎",
+      confidentHands[1].keypoints[0].x,
+      confidentHands[1].keypoints[0].y + 20
     );
   } else if (winner == "player2") {
-    fill(255, 255, 0);
-    text(pos2 + " WINS", width / 2, height - 25);
+    result = pos2 + " WINS";
     textSize(16);
     fill(0, 255, 0);
+    textStyle(BOLD);
     text(
-      "👍\nWINNER",
-      confidentHands[1].middle_finger_mcp.x,
-      confidentHands[1].middle_finger_mcp.y
+      "WINNER 👍",
+      confidentHands[1].keypoints[0].x,
+      confidentHands[1].keypoints[0].y + 20
     );
     fill(255, 0, 0);
     text(
-      "👎\nLOSER",
-      confidentHands[0].middle_finger_mcp.x,
-      confidentHands[0].middle_finger_mcp.y
+      "LOSER 👎",
+      confidentHands[0].keypoints[0].x,
+      confidentHands[0].keypoints[0].y + 20
     );
+  }
+  drawResultText(result, scaleFactor);
+}
+
+function drawResultText(result, scaleFactor) {
+  pop();
+  fill(255, 255, 0);
+  stroke(0);
+  strokeWeight(4);
+  textSize(32);
+  textStyle(BOLD);
+  textAlign(CENTER);
+  if (height >= video.height * scaleFactor + 50) {
+    text(result, width / 2, (height + video.height * scaleFactor) / 2 + 25);
   } else {
-    text(winner, width / 2, height - 25);
+    text(result, width / 2, height - 30);
   }
 }
 
@@ -207,10 +231,11 @@ function drawHandLines(hand) {
     }
   }
   let gesture = detectGesture(hand);
-  noStroke();
+  strokeWeight(2);
+  stroke(0);
   fill(255);
   textSize(16);
-  text(gesture, hand.keypoints[0].x, hand.keypoints[0].y);
+  text(gesture, hand.keypoints[0].x, hand.keypoints[0].y - 10);
   return gesture;
 }
 
