@@ -3,6 +3,9 @@ let handPose;
 let hands = [];
 
 let playStat = "none";
+let currentMode;
+let computerScore = 0;
+let playerScore = 0;
 
 function preload() {
   handPose = ml5.handPose();
@@ -12,29 +15,40 @@ function gotHands(results) {
   hands = results;
 }
 const playButton = document.getElementById("play");
+const playWithAIButton = document.getElementById("playAI");
+const playerScoreDiv = document.getElementById("playerScore");
+const computerScoreDiv = document.getElementById("computerScore");
+const resultDiv = document.getElementById("result");
 
 function onPlay() {
   loop();
   playButton.style.display = "none";
+  playWithAIButton.style.display = "none";
   playStat = "rock";
 
   setTimeout(() => {
     playStat = "paper";
-  }, 700);
+  }, 600);
   setTimeout(() => {
     playStat = "scissors";
-  }, 1400);
+  }, 1200);
   setTimeout(() => {
     playStat = "go";
-  }, 2100);
+  }, 1800);
   setTimeout(() => {
     playStat = "result";
-  }, 2600);
+  }, 2200);
   setTimeout(() => {
     playButton.style.display = "inline";
-    playButton.innerText = "Play Again";
+    playWithAIButton.style.display = "inline";
+    if (currentMode == "single") {
+      playWithAIButton.innerText = "Play Again";
+      playButton.innerText = "Two Players";
+    } else {
+      playButton.innerText = "Play Again";
+      playWithAIButton.innerText = "One Player";
+    }
     playStat = "none";
-    playButton.addEventListener("click", onPlay);
   }, 5000);
 }
 
@@ -44,7 +58,24 @@ function setup() {
   video.hide();
   document.getElementById("loading-screen").style.display = "none";
   playButton.style.display = "inline";
-  playButton.addEventListener("click", onPlay);
+  playWithAIButton.style.display = "inline";
+  playWithAIButton.addEventListener("click", () => {
+    currentMode = "single";
+    onPlay();
+  });
+  playButton.addEventListener("click", () => {
+    currentMode = "double";
+    onPlay();
+  });
+  const resetButton = document.getElementById("reset");
+  resetButton.addEventListener("click", () => {
+    if (!confirm("Are you sure you want to reset the scores?")) return;
+    playerScore = 0;
+    computerScore = 0;
+    playerScoreDiv.innerText = playerScore;
+    computerScoreDiv.innerText = computerScore;
+  });
+
   noLoop();
 }
 
@@ -71,11 +102,18 @@ function drawCountdown() {
 }
 
 function draw() {
+  resultDiv.style.display = "none";
+  if (!currentMode || currentMode == "single") {
+    resultDiv.style.display = "block";
+  } else {
+    resultDiv.style.display = "none";
+  }
   background(0);
   if (playStat == "none") {
-    textSize(32);
+    textSize(24);
     textAlign(CENTER, CENTER);
-    text("Press Play To Start", width / 2, height / 3);
+    fill(255);
+    text("Let's Play !", width / 2, height / 2 - 50);
   } else if (playStat == "result") {
     drawResultHand();
     noLoop();
@@ -91,17 +129,93 @@ async function drawResultHand() {
   push();
   const img = video.get();
   await handPose.detect(img, gotHands);
+  tint(100);
   image(img, 0, 0, width, height, 0, 0, img.width, img.height, CONTAIN);
+  tint(255);
   const scaleFactor = min(width / img.width, height / img.height);
+  if (currentMode == "single") {
+    onePlayerResult(scaleFactor);
+  } else {
+    twoPlayerResult(scaleFactor);
+  }
+}
+
+function onePlayerResult(scaleFactor) {
+  if (!hands.length) {
+    drawResultText("No hands found");
+    return;
+  }
+  const mostConfidentHand = hands.reduce((a, b) =>
+    a.confidence > b.confidence ? a : b
+  );
+
+  const computerChoice = random(["ROCK", "PAPER", "SCISSORS"]);
+  fill(255);
+  stroke(0);
+  strokeWeight(4);
+  textAlign(CENTER, TOP);
+  textSize(16);
+  text("Computer's Choice", width / 2, height / 2 - 160);
+  textSize(100);
+  text(
+    computerChoice == "ROCK" ? "🪨" : computerChoice == "PAPER" ? "📄" : "✂️",
+    width / 2,
+    height / 2 - 130
+  );
+  textSize(24);
+  text(computerChoice, width / 2, height / 2 - 80);
+
   translate(
     (width - video.width * scaleFactor) / 2,
     (height - video.height * scaleFactor) / 2
   );
   scale(scaleFactor);
 
-  const confidentHands = hands
-    .filter((hand) => hand.confidence > 0.2)
-    .sort((a, b) => b.confidence - a.confidence);
+  strokeWeight(5);
+  stroke(255, 0, 255);
+  const playerGuess = drawHandLines(mostConfidentHand);
+  const winner = getWinner(playerGuess, computerChoice);
+  textSize(28);
+  textAlign(CENTER, CENTER);
+  fill(255);
+  noStroke();
+  let result = winner;
+  if (winner == "player1") {
+    result = "PLAYER WINS";
+    textSize(16);
+    textStyle(BOLD);
+    fill(0, 255, 0);
+    text(
+      "WINNER 👍",
+      mostConfidentHand.keypoints[0].x,
+      mostConfidentHand.keypoints[0].y + 20
+    );
+    playerScore++;
+    playerScoreDiv.innerText = playerScore;
+  } else if (winner == "player2") {
+    result = "COMPUTER WINS";
+    textSize(16);
+    fill(0, 255, 0);
+    textStyle(BOLD);
+    text(
+      "LOSER 👎",
+      mostConfidentHand.keypoints[0].x,
+      mostConfidentHand.keypoints[0].y + 20
+    );
+    computerScore++;
+    computerScoreDiv.innerText = computerScore;
+  }
+  drawResultText(result);
+}
+
+function twoPlayerResult(scaleFactor) {
+  const confidentHands = hands.sort((a, b) => b.confidence - a.confidence);
+
+  translate(
+    (width - video.width * scaleFactor) / 2,
+    (height - video.height * scaleFactor) / 2
+  );
+  scale(scaleFactor);
 
   strokeWeight(5);
   stroke(255, 0, 255);
@@ -111,9 +225,9 @@ async function drawResultHand() {
     fill(255);
     if (confidentHands.length == 1) {
       drawHandLines(confidentHands[0]);
-      drawResultText("Only one hand found", scaleFactor);
+      drawResultText("Only one hand found");
     } else {
-      drawResultText("No hands found", scaleFactor);
+      drawResultText("No hands found");
       if (!!hands.length) {
         for (let hand of hands) {
           drawHandLines(hand);
@@ -165,10 +279,10 @@ async function drawResultHand() {
       confidentHands[0].keypoints[0].y + 20
     );
   }
-  drawResultText(result, scaleFactor);
+  drawResultText(result);
 }
 
-function drawResultText(result, scaleFactor) {
+function drawResultText(result) {
   pop();
   fill(255, 255, 0);
   stroke(0);
@@ -176,11 +290,7 @@ function drawResultText(result, scaleFactor) {
   textSize(32);
   textStyle(BOLD);
   textAlign(CENTER);
-  if (height >= video.height * scaleFactor + 50) {
-    text(result, width / 2, (height + video.height * scaleFactor) / 2 + 25);
-  } else {
-    text(result, width / 2, height - 30);
-  }
+  text(result, width / 2, height / 2 + 50);
 }
 
 function getWinner(pos1, pos2) {
